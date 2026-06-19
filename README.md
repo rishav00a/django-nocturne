@@ -32,6 +32,10 @@
 
 ## Screenshots
 
+> 📸 Screenshots taken from the
+> [nocturne-demo](https://github.com/rishav00a/nocturne-demo)
+> project — a fresh Django app with django-nocturne installed from PyPI.
+
 ### Dashboard Overview
 ![Dashboard Overview](https://raw.githubusercontent.com/rishav00a/django-nocturne/main/docs/screenshots/dashboard_overview.png)
 *Real-time system overview with total logs, error rate, and active anomalies*
