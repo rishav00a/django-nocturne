@@ -30,6 +30,62 @@
 
 ---
 
+## Screenshots
+
+### Dashboard Overview
+![Dashboard Overview](docs/screenshots/dashboard_overview.png)
+*Real-time system overview with total logs, error rate, and active anomalies*
+
+### Error Rate & Service Health
+![Charts](docs/screenshots/dashboard_charts.png)
+*Error rate over time per service + health scores (0–100)*
+
+### Anomaly Detection
+![Anomaly Table](docs/screenshots/dashboard_anomaly_table.png)
+*Detected anomalies with severity badges and Z-scores*
+
+### Anomaly Detail with AI Diagnosis
+![Anomaly Modal](docs/screenshots/anomaly_modal.png)
+*Z-score meter, plain English explanation, and LLM root cause analysis*
+
+### Log Explorer
+![Log Explorer](docs/screenshots/log_explorer.png)
+*Paginated log table with colored level badges and full-text search*
+
+### Stacktrace Viewer
+![Stacktrace](docs/screenshots/log_stacktrace.png)
+*Expanded log row showing exception badge, syntax-highlighted stacktrace, and AI analysis button*
+
+### AI Root-Cause Analysis
+![AI Analysis](docs/screenshots/log_ai_analysis.png)
+*On-demand LLM diagnosis with root cause, fix, and prevention steps*
+
+### Webhook Activity
+![Webhook Activity](docs/screenshots/webhook_activity.png)
+*Live delivery feed showing status, payload, and response for every webhook event*
+
+### Health Trends
+![Health Trends](docs/screenshots/health_trends.png)
+*Per-service trend cards with ↑/↓/→ indicators and 0–100 composite scores*
+
+### Timeframe Filter
+![Timeframe Filter](docs/screenshots/timeframe_filter.png)
+*Global 15M–7D pill filter that updates all charts simultaneously*
+
+### Django Admin — Log Entries
+![Admin Dashboard](docs/screenshots/admin_dashboard.png)
+*Django admin list view for LogEntry with filtering and search*
+
+### Django Admin — Anomaly Events
+![Admin Anomalies](docs/screenshots/admin_anomaly_list.png)
+*Django admin list view for AnomalyEvent with severity and resolution status*
+
+### REST API (DRF Browsable)
+![API Health](docs/screenshots/api_health.png)
+*DRF browsable API health endpoint response*
+
+---
+
 ## Requirements
 
 - Python 3.9+
