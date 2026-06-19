@@ -2,11 +2,13 @@
 
 > Intelligent observability for Django. Detect anomalies, diagnose with AI, alert via webhooks — plug in, migrate, done.
 
-[![PyPI version](https://badge.fury.io/py/django-nocturne.svg)](https://badge.fury.io/py/django-nocturne)
-[![Python Versions](https://img.shields.io/pypi/pyversions/django-nocturne.svg)](https://pypi.org/project/django-nocturne/)
-[![Django Versions](https://img.shields.io/pypi/djversions/django-nocturne.svg)](https://pypi.org/project/django-nocturne/)
-[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
+[![PyPI version](https://img.shields.io/pypi/v/django-nocturne?color=blue&label=pypi)](https://pypi.org/project/django-nocturne/)
+[![Python Versions](https://img.shields.io/pypi/pyversions/django-nocturne)](https://pypi.org/project/django-nocturne/)
+[![Django Versions](https://img.shields.io/pypi/djversions/django-nocturne?label=django)](https://pypi.org/project/django-nocturne/)
+[![License: MIT](https://img.shields.io/badge/license-MIT-green.svg)](https://opensource.org/licenses/MIT)
 [![CI](https://github.com/rishav00a/django-nocturne/actions/workflows/ci.yml/badge.svg)](https://github.com/rishav00a/django-nocturne/actions/workflows/ci.yml)
+[![Documentation](https://readthedocs.org/projects/django-nocturne/badge/?version=latest)](https://django-nocturne.readthedocs.io)
+[![PyPI Downloads](https://img.shields.io/pypi/dm/django-nocturne?color=brightgreen)](https://pypi.org/project/django-nocturne/)
 
 ---
 
@@ -25,6 +27,15 @@
 - **Real-time dashboard** — Chart.js visualisations, log explorer with syntax-highlighted stacktraces, anomaly detail modals
 - **Timeframe filter** — global 15M / 30M / 1H / 3H / 6H / 12H / 24H / 7D filter controlling all charts simultaneously
 - **REST API** — full DRF API for health, logs, anomalies, webhooks, and dashboard data
+
+---
+
+## Requirements
+
+- Python 3.9+
+- Django 4.2 or 5.1+
+- Django REST Framework 3.14+
+- numpy
 
 ---
 
