@@ -28,3 +28,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `nocturne_config` and `test_ai_diagnosis` management commands
 - Django admin integration for all models
 - Support for Django 4.0–5.0, Python 3.9–3.12
+
+## [0.1.1] - 2026-06-19
+
+### Added
+- Live demo screenshots covering all dashboard features
+- Screenshots gallery in ReadTheDocs
+
+### Fixed
+- CI Django/Python version matrix
+- Added pytest-cov to dev dependencies
+- Fixed .readthedocs.yaml configuration
+- Replaced fury.io badges with shields.io
