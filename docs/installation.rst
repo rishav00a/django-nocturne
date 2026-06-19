@@ -62,3 +62,7 @@ Quick Setup
 
       python manage.py migrate
       python manage.py runserver
+
+.. image:: screenshots/dashboard_overview.png
+   :alt: django-nocturne dashboard after installation
+   :width: 100%
