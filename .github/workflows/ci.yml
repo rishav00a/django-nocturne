@@ -55,4 +55,6 @@ jobs:
 
       - name: Run coverage
         if: matrix.python-version == '3.12' && matrix.django-version == '5.1'
-        run: pytest tests/ --cov=nocturne --cov-report=term-missing
+        run: |
+          pip install pytest-cov
+          pytest tests/ --cov=nocturne --cov-report=term-missing

@@ -55,6 +55,7 @@ all = [
 dev = [
   "pytest>=7.0",
   "pytest-django>=4.5",
+  "pytest-cov>=4.0",
   "factory-boy>=3.2",
   "coverage>=7.0",
 ]
