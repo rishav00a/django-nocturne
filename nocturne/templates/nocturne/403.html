@@ -1,0 +1,65 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>403 — Access Denied · Nocturne</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      background: #0f1117;
+      color: #e0e0e0;
+      font-family: 'Courier New', Courier, monospace;
+      min-height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+    .container {
+      text-align: center;
+      max-width: 480px;
+      padding: 40px 24px;
+    }
+    .code {
+      font-size: 5rem;
+      font-weight: bold;
+      color: #00e5ff;
+      letter-spacing: 4px;
+      line-height: 1;
+      margin-bottom: 16px;
+    }
+    h1 {
+      font-size: 1.2rem;
+      color: #ff4081;
+      margin-bottom: 20px;
+      letter-spacing: 1px;
+    }
+    p {
+      font-size: 0.9rem;
+      color: #888;
+      line-height: 1.7;
+      margin-bottom: 32px;
+    }
+    a {
+      color: #00e5ff;
+      text-decoration: none;
+      border-bottom: 1px solid #00e5ff44;
+      padding-bottom: 2px;
+      font-size: 0.85rem;
+    }
+    a:hover { border-color: #00e5ff; }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <div class="code">403</div>
+    <h1>Access Denied</h1>
+    <p>
+      You do not have permission to view the Watchdog dashboard.<br>
+      Contact your administrator to request the
+      <code style="color:#00e5ff">nocturne.view_watchdog</code> permission.
+    </p>
+    <a href="/admin/">&#8592; Go to Admin</a>
+  </div>
+</body>
+</html>

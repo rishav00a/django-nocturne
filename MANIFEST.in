@@ -1,0 +1,9 @@
+include README.md
+include LICENSE
+include CHANGELOG.md
+recursive-include nocturne/templates *
+recursive-include nocturne/static *
+recursive-include nocturne/migrations *.py
+global-exclude __pycache__
+global-exclude *.py[co]
+global-exclude .DS_Store

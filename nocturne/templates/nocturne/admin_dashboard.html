@@ -1,0 +1,603 @@
+{% extends "admin/base_site.html" %}
+{% load static %}
+
+{% block title %}Nocturne Dashboard{% endblock %}
+
+{% block extrahead %}
+{{ block.super }}
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+<style>
+  .wd-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 20px;
+    padding: 20px 0;
+  }
+  .wd-card {
+    background: #fff;
+    border: 1px solid #ddd;
+    border-radius: 6px;
+    padding: 18px;
+  }
+  .wd-card h3 { font-size: 0.9rem; color: #666; margin-bottom: 12px; text-transform: uppercase; }
+  .wd-chart-wrap { position: relative; height: 200px; }
+  .wd-full { grid-column: 1 / -1; }
+  .wd-anomaly-table { width: 100%; border-collapse: collapse; font-size: 0.82rem; }
+  .wd-anomaly-table th { background: #f5f5f5; padding: 8px; text-align: left; }
+  .wd-anomaly-table td { padding: 8px; border-bottom: 1px solid #eee; }
+  .wd-anomaly-row { cursor: pointer; }
+  .wd-anomaly-row:hover { background: #f0f7ff; }
+  .badge { display: inline-block; padding: 2px 8px; border-radius: 4px; font-size: 0.72rem; font-weight: bold; }
+  .badge-LOW    { background: #28a745; color: #fff; }
+  .badge-MEDIUM { background: #ffc107; color: #000; }
+  .badge-HIGH   { background: #fd7e14; color: #fff; }
+  .badge-CRITICAL { background: #dc3545; color: #fff; }
+  .wd-btn {
+    display: inline-block;
+    margin-bottom: 12px;
+    padding: 8px 16px;
+    background: #417690;
+    color: #fff;
+    border: none;
+    border-radius: 4px;
+    cursor: pointer;
+    font-size: 0.85rem;
+    margin-right: 8px;
+  }
+  .wd-btn:hover { background: #205070; }
+  #wd-status { font-size: 0.8rem; color: #666; }
+
+  /* Timeframe pills */
+  .nc-tf-bar { display: flex; align-items: center; gap: 10px; margin-bottom: 16px; }
+  .nc-tf-label { color: #888; font-size: 0.75rem; text-transform: uppercase; letter-spacing: 1px; }
+  .nc-tf-pills { display: flex; gap: 4px; }
+  .nc-tf-pill {
+    background: #f5f5f5; border: 1px solid #ddd; color: #888;
+    padding: 3px 10px; border-radius: 14px; cursor: pointer;
+    font-size: 0.72rem; font-family: inherit; margin: 0;
+    transition: all 0.15s;
+  }
+  .nc-tf-pill:hover { border-color: #417690; color: #417690; background: #eef4f8; }
+  .nc-tf-pill.nc-tf-active { background: #417690; border-color: #417690; color: #fff; font-weight: bold; }
+  .nc-tf-loading .nc-tf-pills { opacity: 0.5; pointer-events: none; }
+
+  /* ── Modal (dark) ── */
+  #wd-anomaly-modal {
+    display: none;
+    position: fixed;
+    inset: 0;
+    z-index: 9999;
+    align-items: center;
+    justify-content: center;
+    background: rgba(0,0,0,0.75);
+    padding: 24px;
+    font-family: 'Courier New', Courier, monospace;
+  }
+  #wd-modal-box {
+    background: #0f1117;
+    border: 1px solid #00e5ff;
+    border-radius: 8px;
+    max-width: 720px;
+    width: 100%;
+    max-height: 90vh;
+    overflow-y: auto;
+    padding: 28px 32px;
+    position: relative;
+    color: #e0e0e0;
+    font-size: 0.85rem;
+  }
+  #wd-modal-close {
+    position: absolute;
+    top: 12px;
+    right: 16px;
+    background: none;
+    border: none;
+    color: #555;
+    font-size: 1.5rem;
+    cursor: pointer;
+    padding: 0;
+    line-height: 1;
+  }
+  #wd-modal-close:hover { color: #ff4081; }
+  .wd-modal-header {
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 4px;
+    margin-bottom: 24px;
+    padding-bottom: 16px;
+    border-bottom: 1px solid #1e2433;
+  }
+  .wd-modal-section { margin-bottom: 24px; }
+  .wd-modal-section-title {
+    color: #00e5ff;
+    font-size: 0.78rem;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    margin-bottom: 12px;
+    padding-bottom: 6px;
+    border-bottom: 1px solid #1e2433;
+  }
+  .wd-modal-grid {
+    display: grid;
+    grid-template-columns: 160px 1fr;
+    gap: 8px 16px;
+    font-size: 0.82rem;
+  }
+  .wd-modal-label { color: #555; }
+  .wd-zscore-bar {
+    position: relative;
+    display: flex;
+    height: 20px;
+    border-radius: 4px;
+    overflow: visible;
+    margin-bottom: 8px;
+  }
+  .wd-zscore-zone { height: 100%; }
+  .wd-zscore-marker {
+    position: absolute;
+    top: -4px;
+    width: 3px;
+    height: 28px;
+    background: #fff;
+    border-radius: 2px;
+    transform: translateX(-50%);
+    box-shadow: 0 0 8px rgba(255,255,255,0.6);
+  }
+  .wd-zscore-labels {
+    display: flex;
+    justify-content: space-between;
+    font-size: 0.7rem;
+    margin-bottom: 10px;
+  }
+  .wd-zscore-explain { font-size: 0.82rem; color: #888; line-height: 1.7; }
+  .wd-ai-terminal {
+    background: #0a0a0a;
+    border: 1px solid #00ff88;
+    color: #00ff88;
+    font-family: 'Courier New', Courier, monospace;
+    padding: 16px;
+    border-radius: 4px;
+    font-size: 0.8rem;
+    white-space: pre-wrap;
+    line-height: 1.6;
+  }
+  .wd-modal-actions {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding-top: 16px;
+    border-top: 1px solid #1e2433;
+    flex-wrap: wrap;
+  }
+  .wd-modal-btn {
+    background: #00e5ff22;
+    border: 1px solid #00e5ff55;
+    color: #00e5ff;
+    padding: 6px 14px;
+    border-radius: 4px;
+    cursor: pointer;
+    font-family: 'Courier New', Courier, monospace;
+    font-size: 0.78rem;
+  }
+  .wd-modal-btn:hover { background: #00e5ff33; }
+  #wd-modal-action-status { font-size: 0.78rem; margin-left: 4px; }
+</style>
+{% endblock %}
+
+{% block content %}
+<h1>Nocturne Dashboard</h1>
+<div>
+  <button class="wd-btn" onclick="wdRunDetection()">&#9654; Run Detection Scan</button>
+  <button class="wd-btn" onclick="wdMarkAllResolved()">&#10003; Mark All Resolved</button>
+  <span id="wd-status"></span>
+</div>
+
+<!-- Timeframe filter bar -->
+<div class="nc-tf-bar" id="nc-tf-bar">
+  <span class="nc-tf-label">Timeframe</span>
+  <div class="nc-tf-pills">
+    <button class="nc-tf-pill" data-tf="15m">15M</button>
+    <button class="nc-tf-pill" data-tf="30m">30M</button>
+    <button class="nc-tf-pill nc-tf-active" data-tf="1h">1H</button>
+    <button class="nc-tf-pill" data-tf="3h">3H</button>
+    <button class="nc-tf-pill" data-tf="6h">6H</button>
+    <button class="nc-tf-pill" data-tf="12h">12H</button>
+    <button class="nc-tf-pill" data-tf="24h">24H</button>
+    <button class="nc-tf-pill" data-tf="7d">7D</button>
+  </div>
+</div>
+
+<div class="wd-grid">
+  <div class="wd-card">
+    <h3 id="wd-h-error-rate">Error Rate / 5min (last 60 min)</h3>
+    <div class="wd-chart-wrap"><canvas id="wdErrorChart"></canvas></div>
+  </div>
+  <div class="wd-card">
+    <h3>Service Health Scores (0–100)</h3>
+    <div class="wd-chart-wrap"><canvas id="wdHealthChart"></canvas></div>
+  </div>
+  <div class="wd-card">
+    <h3 id="wd-h-level-dist">Log Level Distribution (1h)</h3>
+    <div class="wd-chart-wrap"><canvas id="wdLevelChart"></canvas></div>
+  </div>
+  <div class="wd-card">
+    <h3>Detection Summary</h3>
+    <p style="font-size:0.85rem;color:#555;margin-top:8px;">
+      Health scores are computed from 3 signals:<br>
+      Error rate (50%) + Response time vs baseline (30%) + Volume drop (20%).
+    </p>
+  </div>
+
+  <div class="wd-card wd-full">
+    <h3>Recent Anomalies <span style="font-size:0.75rem;color:#999;font-weight:normal;text-transform:none;letter-spacing:0">— click row for details</span></h3>
+    <table class="wd-anomaly-table">
+      <thead>
+        <tr>
+          <th>Detected</th><th>Service</th><th>Severity</th>
+          <th>Z-Score</th><th>Errors</th><th>Health</th><th>Resolved</th>
+        </tr>
+      </thead>
+      <tbody id="wdAnomalyTbody"><tr><td colspan="7">Loading…</td></tr></tbody>
+    </table>
+  </div>
+</div>
+
+<!-- Anomaly detail modal (dark theme) -->
+<div id="wd-anomaly-modal">
+  <div id="wd-modal-box">
+    <button id="wd-modal-close" title="Close (Esc)">&#x2715;</button>
+    <div id="wd-modal-content"></div>
+  </div>
+</div>
+
+<script>
+  const NC_DATA_URL    = "/admin/../watchdog/api/dashboard/data/";
+  const WD_DETECT_URL  = "/admin/../watchdog/api/detect/";
+  const NC_ANOMALY_URL = "/admin/../watchdog/api/anomalies/";
+
+  let wdErrorChart, wdHealthChart, wdLevelChart;
+  let wdAnomalyData = [];
+  let wdLastData    = null;
+  let wdCurrentTimeframe = localStorage.getItem('nc_tf_admin') || '1h';
+
+  const WD_TF_BUCKET = { '15m':'5min','30m':'5min','1h':'5min','3h':'15min','6h':'15min','12h':'30min','24h':'30min','7d':'2hr' };
+  const WD_TF_FULL   = { '15m':'15 mins','30m':'30 mins','1h':'60 mins','3h':'3H','6h':'6H','12h':'12H','24h':'24H','7d':'7 days' };
+  const WD_TF_UPPER  = { '15m':'15M','30m':'30M','1h':'1H','3h':'3H','6h':'6H','12h':'12H','24h':'24H','7d':'7D' };
+
+  function wdSetStatus(msg) {
+    document.getElementById("wd-status").textContent = msg;
+  }
+
+  function wdUpdatePills() {
+    document.querySelectorAll('.nc-tf-pill').forEach(btn => {
+      btn.classList.toggle('nc-tf-active', btn.dataset.tf === wdCurrentTimeframe);
+    });
+  }
+
+  function wdUpdateHeaders(tf) {
+    const bucket = WD_TF_BUCKET[tf] || '5min';
+    const full   = WD_TF_FULL[tf]   || tf;
+    const u      = WD_TF_UPPER[tf]  || tf.toUpperCase();
+    const h1 = document.getElementById('wd-h-error-rate');
+    if (h1) h1.textContent = 'Error Rate / ' + bucket + ' (Last ' + full + ')';
+    const h2 = document.getElementById('wd-h-level-dist');
+    if (h2) h2.textContent = 'Log Level Distribution (' + u + ')';
+  }
+
+  function wdInitTimeframe() {
+    wdUpdatePills();
+    document.querySelectorAll('.nc-tf-pill').forEach(btn => {
+      btn.addEventListener('click', () => {
+        wdCurrentTimeframe = btn.dataset.tf;
+        localStorage.setItem('nc_tf_admin', wdCurrentTimeframe);
+        wdUpdatePills();
+        wdFetchData();
+      });
+    });
+  }
+
+  async function wdFetchData() {
+    const tfBar = document.getElementById('nc-tf-bar');
+    if (tfBar) tfBar.classList.add('nc-tf-loading');
+
+    const params = new URLSearchParams({ timeframe: wdCurrentTimeframe });
+
+    try {
+      const [dashResp, anomalyResp] = await Promise.all([
+        fetch(NC_DATA_URL    + '?' + params, { credentials: 'same-origin' }),
+        fetch(NC_ANOMALY_URL + '?' + params, { credentials: 'same-origin' }),
+      ]);
+      if (!dashResp.ok) { wdSetStatus('Failed to load dashboard data.'); return; }
+
+      const [d, anomalies] = await Promise.all([dashResp.json(), anomalyResp.json()]);
+      wdLastData = d;
+
+      wdUpdateHeaders(wdCurrentTimeframe);
+
+      // Error rate chart
+      const palette = ['#417690','#dc3545','#ffc107','#28a745','#6f42c1'];
+      const errorDatasets = (d.services || []).map((s, i) => ({
+        label: s,
+        data: d.error_series[s] || [],
+        borderColor: palette[i % palette.length],
+        tension: 0.3,
+        fill: false,
+      }));
+      if (wdErrorChart) wdErrorChart.destroy();
+      wdErrorChart = new Chart(document.getElementById('wdErrorChart'), {
+        type: 'line',
+        data: { labels: d.labels, datasets: errorDatasets },
+        options: {
+          responsive: true, maintainAspectRatio: false,
+          plugins: { legend: { position: 'bottom' } },
+          scales: { x: { ticks: { maxTicksLimit: 12 } } },
+        },
+      });
+
+      // Health chart
+      const healthLabels = Object.keys(d.health_scores || {});
+      const healthValues = Object.values(d.health_scores || {});
+      if (wdHealthChart) wdHealthChart.destroy();
+      wdHealthChart = new Chart(document.getElementById('wdHealthChart'), {
+        type: 'bar',
+        data: {
+          labels: healthLabels,
+          datasets: [{ label: 'Health Score', data: healthValues, backgroundColor: '#417690' }],
+        },
+        options: {
+          responsive: true, maintainAspectRatio: false,
+          scales: { y: { min: 0, max: 100 } },
+          plugins: { legend: { display: false } },
+        },
+      });
+
+      // Level doughnut
+      const ld = d.level_distribution || {};
+      const levelColors = { INFO: '#17a2b8', WARNING: '#ffc107', ERROR: '#dc3545', CRITICAL: '#6f42c1' };
+      if (wdLevelChart) wdLevelChart.destroy();
+      wdLevelChart = new Chart(document.getElementById('wdLevelChart'), {
+        type: 'doughnut',
+        data: {
+          labels: Object.keys(ld),
+          datasets: [{ data: Object.values(ld), backgroundColor: Object.keys(ld).map(k => levelColors[k] || '#999') }],
+        },
+        options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { position: 'bottom' } } },
+      });
+
+      // Anomaly table (timeframe-filtered from anomaly endpoint)
+      wdAnomalyData = Array.isArray(anomalies) ? anomalies : [];
+      const tbody = document.getElementById('wdAnomalyTbody');
+      if (!wdAnomalyData.length) {
+        tbody.innerHTML = '<tr><td colspan="7" style="color:#999">No anomalies in selected timeframe.</td></tr>';
+        return;
+      }
+      tbody.innerHTML = wdAnomalyData.map((a, i) =>
+        '<tr class="wd-anomaly-row" data-idx="' + i + '">' +
+          '<td>' + new Date(a.detected_at).toLocaleString() + '</td>' +
+          '<td>' + wdEscHtml(a.service_name) + '</td>' +
+          '<td><span class="badge badge-' + a.severity + '">' + a.severity + '</span></td>' +
+          '<td>' + a.z_score.toFixed(2) + '</td>' +
+          '<td>' + (a.error_count ?? '—') + '</td>' +
+          '<td>' + (a.health_score != null ? a.health_score.toFixed(1) : '—') + '</td>' +
+          '<td>' + (a.resolved ? '✓' : '✗') + '</td>' +
+        '</tr>'
+      ).join('');
+      tbody.querySelectorAll('.wd-anomaly-row').forEach(tr => {
+        tr.addEventListener('click', () => wdOpenModal(wdAnomalyData[+tr.dataset.idx]));
+      });
+    } finally {
+      if (tfBar) tfBar.classList.remove('nc-tf-loading');
+    }
+  }
+
+  async function wdRunDetection() {
+    wdSetStatus('Running detection scan…');
+    const r = await fetch(WD_DETECT_URL, { method: 'POST', credentials: 'same-origin', headers: { 'X-CSRFToken': wdGetCookie('csrftoken') } });
+    const d = await r.json();
+    wdSetStatus('Scan complete — ' + d.anomalies_detected + ' anomalies found.');
+    wdFetchData();
+  }
+
+  async function wdMarkAllResolved() {
+    wdSetStatus('Marking all anomalies as resolved…');
+    const r = await fetch(NC_ANOMALY_URL + '?resolved=false', { credentials: 'same-origin' });
+    const anomalies = await r.json();
+    await Promise.all(anomalies.map(a =>
+      fetch(NC_ANOMALY_URL + a.id + '/', {
+        method: 'PATCH',
+        credentials: 'same-origin',
+        headers: { 'Content-Type': 'application/json', 'X-CSRFToken': wdGetCookie('csrftoken') },
+        body: JSON.stringify({ resolved: true }),
+      })
+    ));
+    wdSetStatus('All anomalies resolved.');
+    wdFetchData();
+  }
+
+  /* ── Modal ── */
+
+  function wdInitModal() {
+    document.addEventListener('keydown', e => { if (e.key === 'Escape') wdCloseModal(); });
+    const wrap = document.getElementById('wd-anomaly-modal');
+    if (wrap) wrap.addEventListener('click', e => { if (e.target === wrap) wdCloseModal(); });
+    document.getElementById('wd-modal-close').addEventListener('click', wdCloseModal);
+  }
+
+  function wdOpenModal(a) {
+    document.getElementById('wd-modal-content').innerHTML = wdBuildModalHTML(a);
+    document.getElementById('wd-anomaly-modal').style.display = 'flex';
+    const resolveBtn = document.getElementById('wd-modal-resolve-btn');
+    if (resolveBtn && !a.resolved) resolveBtn.addEventListener('click', () => wdResolveAnomaly(a));
+    const detectBtn = document.getElementById('wd-modal-detect-btn');
+    if (detectBtn) detectBtn.addEventListener('click', wdRunDetectionFromModal);
+  }
+
+  function wdCloseModal() {
+    document.getElementById('wd-anomaly-modal').style.display = 'none';
+  }
+
+  function wdBuildModalHTML(a) {
+    const dt = new Date(a.detected_at);
+    const dateStr = dt.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })
+      + ' ' + dt.toLocaleTimeString('en-US', { hour12: false, hour: '2-digit', minute: '2-digit', second: '2-digit' });
+
+    const z   = Math.max(0, Math.min(a.z_score, 6));
+    const pct = (z / 6 * 100).toFixed(1);
+
+    const zTexts = {
+      MEDIUM:   'This is a moderate deviation worth investigating.',
+      HIGH:     'This is a significant spike that likely impacted users.',
+      CRITICAL: 'This is an extreme spike indicating a serious incident.',
+    };
+    const zText = zTexts[a.severity] || '';
+
+    const winStr = (a.window_start && a.window_end)
+      ? new Date(a.window_start).toLocaleTimeString() + ' → ' + new Date(a.window_end).toLocaleTimeString()
+      : '—';
+
+    const diag = (a.ai_diagnosis || '').trim();
+    const diagHidden = !diag || diag.includes('not configured') || diag.includes('disabled')
+      || diag.includes('AI diagnosis disabled');
+    let aiSection = '';
+    if (!diagHidden) {
+      const diagAt = a.ai_diagnosed_at ? new Date(a.ai_diagnosed_at).toLocaleString() : '—';
+      const backend = wdLastData ? wdLastData.ai_backend_name : '';
+      const model   = wdLastData ? wdLastData.ai_model_name   : '';
+      const byLine  = backend ? ' using ' + wdEscHtml(backend) + ' (' + wdEscHtml(model) + ')' : '';
+      aiSection =
+        '<div class="wd-modal-section">' +
+          '<div class="wd-modal-section-title">AI Root-Cause Analysis</div>' +
+          '<div class="wd-ai-terminal">' + wdEscHtml(diag) + '</div>' +
+          '<div style="font-size:0.7rem;color:#555;margin-top:8px;">Diagnosed at ' + diagAt + byLine + '</div>' +
+        '</div>';
+    }
+
+    const resolveBtn = a.resolved
+      ? '<button class="wd-modal-btn" id="wd-modal-resolve-btn" disabled style="opacity:0.45;cursor:default">Already Resolved</button>'
+      : '<button class="wd-modal-btn" id="wd-modal-resolve-btn">Mark as Resolved</button>';
+
+    return (
+      '<div class="wd-modal-header">' +
+        '<span style="color:#00e5ff;font-size:1.05rem;font-weight:bold">' + wdEscHtml(a.service_name) + '</span>' +
+        '<span class="badge badge-' + a.severity + '" style="margin-left:12px">' + a.severity + '</span>' +
+        '<span style="margin-left:12px;font-size:0.8rem">' +
+          (a.resolved ? '<span style="color:#69f0ae">Resolved</span>' : '<span style="color:#ff4081">Active</span>') +
+        '</span>' +
+      '</div>' +
+      '<div class="wd-modal-section">' +
+        '<div class="wd-modal-section-title">Anomaly Summary</div>' +
+        '<div class="wd-modal-grid">' +
+          '<div class="wd-modal-label">Detected At</div><div>' + dateStr + '</div>' +
+          '<div class="wd-modal-label">Service</div><div>' + wdEscHtml(a.service_name) + '</div>' +
+          '<div class="wd-modal-label">Severity</div><div><span class="badge badge-' + a.severity + '">' + a.severity + '</span></div>' +
+          '<div class="wd-modal-label">Status</div><div>' + (a.resolved ? 'Resolved' : 'Active') + '</div>' +
+          '<div class="wd-modal-label">Error Count</div><div>' + (a.error_count ?? '—') + ' errors in window</div>' +
+          '<div class="wd-modal-label">Window</div><div>' + winStr + '</div>' +
+        '</div>' +
+      '</div>' +
+      '<div class="wd-modal-section">' +
+        '<div class="wd-modal-section-title">Z-Score Analysis</div>' +
+        '<div style="margin-bottom:12px">' +
+          '<div class="wd-zscore-bar">' +
+            '<div class="wd-zscore-zone" style="width:33.3%;background:#28a74530;border-radius:4px 0 0 4px"></div>' +
+            '<div class="wd-zscore-zone" style="width:16.7%;background:#ffc10730"></div>' +
+            '<div class="wd-zscore-zone" style="width:16.7%;background:#fd7e1430"></div>' +
+            '<div class="wd-zscore-zone" style="width:33.3%;background:#dc354530;border-radius:0 4px 4px 0"></div>' +
+            '<div class="wd-zscore-marker" style="left:' + pct + '%"></div>' +
+          '</div>' +
+          '<div class="wd-zscore-labels">' +
+            '<span style="color:#28a745">0 Normal</span>' +
+            '<span style="color:#ffc107">2 Medium</span>' +
+            '<span style="color:#fd7e14">3 High</span>' +
+            '<span style="color:#dc3545">4 Critical</span>' +
+            '<span style="color:#666">6+</span>' +
+          '</div>' +
+        '</div>' +
+        '<p class="wd-zscore-explain">' +
+          'A Z-score of <strong style="color:#e0e0e0">' + a.z_score.toFixed(2) + '</strong> means this ' +
+          "service's error rate was <strong style=\"color:#e0e0e0\">" + a.z_score.toFixed(1) + 'x</strong> ' +
+          'standard deviations above its normal baseline. ' + wdEscHtml(zText) +
+        '</p>' +
+      '</div>' +
+      aiSection +
+      '<div class="wd-modal-actions">' +
+        resolveBtn +
+        '<button class="wd-modal-btn" id="wd-modal-detect-btn">Run Fresh Detection</button>' +
+        '<span id="wd-modal-action-status"></span>' +
+      '</div>'
+    );
+  }
+
+  async function wdResolveAnomaly(a) {
+    const btn = document.getElementById('wd-modal-resolve-btn');
+    const st  = document.getElementById('wd-modal-action-status');
+    btn.disabled = true;
+    st.style.color = '#aaa';
+    st.textContent = 'Resolving…';
+    try {
+      const r = await fetch(NC_ANOMALY_URL + a.id + '/', {
+        method: 'PATCH',
+        credentials: 'same-origin',
+        headers: { 'Content-Type': 'application/json', 'X-CSRFToken': wdGetCookie('csrftoken') },
+        body: JSON.stringify({ resolved: true }),
+      });
+      if (r.ok) {
+        a.resolved = true;
+        st.style.color = '#69f0ae';
+        st.textContent = 'Marked as resolved';
+        btn.textContent = 'Already Resolved';
+        wdFetchData();
+      } else {
+        st.style.color = '#ff4081';
+        st.textContent = 'Failed (check permissions).';
+        btn.disabled = false;
+      }
+    } catch (e) {
+      st.style.color = '#ff4081';
+      st.textContent = 'Error: ' + e.message;
+      btn.disabled = false;
+    }
+  }
+
+  async function wdRunDetectionFromModal() {
+    const btn = document.getElementById('wd-modal-detect-btn');
+    const st  = document.getElementById('wd-modal-action-status');
+    btn.disabled = true;
+    st.style.color = '#aaa';
+    st.textContent = 'Running scan…';
+    try {
+      const r = await fetch(WD_DETECT_URL, {
+        method: 'POST',
+        credentials: 'same-origin',
+        headers: { 'X-CSRFToken': wdGetCookie('csrftoken') },
+      });
+      const d = await r.json();
+      st.style.color = '#69f0ae';
+      st.textContent = 'Scan complete — ' + d.anomalies_detected + ' anomalies found.';
+      wdFetchData();
+    } catch (e) {
+      st.style.color = '#ff4081';
+      st.textContent = 'Scan failed: ' + e.message;
+    } finally {
+      btn.disabled = false;
+    }
+  }
+
+  function wdGetCookie(name) {
+    const v = document.cookie.match('(^|;) ?' + name + '=([^;]*)(;|$)');
+    return v ? v[2] : null;
+  }
+
+  function wdEscHtml(str) {
+    return String(str ?? '')
+      .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+  }
+
+  wdInitTimeframe();
+  wdFetchData();
+  setInterval(wdFetchData, 30000);
+  wdInitModal();
+</script>
+{% endblock %}

@@ -1,0 +1,381 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Nocturne — Dashboard</title>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    body { background: #0f1117; color: #e0e0e0; font-family: 'Courier New', Courier, monospace; min-height: 100vh; }
+    header { display: flex; align-items: center; justify-content: space-between; padding: 16px 32px; border-bottom: 1px solid #1e2433; }
+    header h1 { color: #00e5ff; font-size: 1.4rem; letter-spacing: 2px; }
+    header span { font-size: 0.75rem; color: #666; }
+    .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; padding: 24px 32px; }
+    .card { background: #161b27; border: 1px solid #1e2433; border-radius: 8px; padding: 20px; }
+    .card h2 { color: #00e5ff; font-size: 0.85rem; letter-spacing: 1px; margin-bottom: 16px; text-transform: uppercase; }
+    .chart-wrap { position: relative; height: 220px; }
+    .stat-row { display: flex; gap: 24px; }
+    .stat { background: #0f1117; border: 1px solid #1e2433; border-radius: 6px; padding: 12px 20px; flex: 1; }
+    .stat .label { font-size: 0.7rem; color: #666; text-transform: uppercase; letter-spacing: 1px; }
+    .stat .value { font-size: 1.6rem; color: #00e5ff; font-weight: bold; }
+    .anomaly-table { width: 100%; border-collapse: collapse; font-size: 0.78rem; }
+    .anomaly-table th { color: #666; text-align: left; padding: 6px 8px; border-bottom: 1px solid #1e2433; }
+    .anomaly-table td { padding: 6px 8px; border-bottom: 1px solid #111623; }
+    .anomaly-row { cursor: pointer; }
+    .anomaly-row:hover { background: #1a1f2e; }
+    .badge { display: inline-block; padding: 2px 8px; border-radius: 4px; font-size: 0.7rem; font-weight: bold; }
+    .badge-LOW    { background: #28a745; color: #fff; }
+    .badge-MEDIUM { background: #ffc107; color: #000; }
+    .badge-HIGH   { background: #fd7e14; color: #fff; }
+    .badge-CRITICAL { background: #dc3545; color: #fff; }
+    .full-width { grid-column: 1 / -1; }
+    #refresh-indicator { font-size: 0.7rem; color: #444; }
+    button { background: #00e5ff22; border: 1px solid #00e5ff55; color: #00e5ff; padding: 6px 14px; border-radius: 4px; cursor: pointer; font-family: inherit; font-size: 0.78rem; margin-right: 8px; }
+    button:hover { background: #00e5ff33; }
+    button:disabled { opacity: 0.45; cursor: default; }
+
+    /* System Intelligence bar */
+    .intel-bar { background: #1a1f2e; border-left: 3px solid #00e5ff; border-radius: 4px; padding: 10px 20px; display: flex; align-items: center; flex-wrap: wrap; font-size: 0.8rem; color: #b0bec5; }
+    .intel-item { padding: 2px 0; white-space: nowrap; }
+    .intel-sep { color: #2a3040; padding: 0 16px; }
+
+    /* Timeframe filter bar */
+    .tf-bar { display: flex; align-items: center; justify-content: flex-end; gap: 14px; padding: 2px 0; }
+    .tf-label { color: #444; font-size: 0.7rem; text-transform: uppercase; letter-spacing: 1px; }
+    .tf-pills { display: flex; gap: 4px; }
+    .tf-pill { background: #1a1f2e; border: 1px solid #2a3040; color: #555; padding: 4px 12px; border-radius: 16px; cursor: pointer; font-size: 0.72rem; font-family: inherit; margin: 0; transition: all 0.15s; }
+    .tf-pill:hover { border-color: #00e5ff44; color: #999; background: #1e2433; }
+    .tf-pill.tf-active { background: #00e5ff; border-color: #00e5ff; color: #0f1117; font-weight: bold; }
+    .tf-loading .tf-pills { opacity: 0.45; pointer-events: none; }
+
+    /* Right-column widget stack */
+    .col-stack { display: flex; flex-direction: column; gap: 12px; }
+    .mini-card { background: #161b27; border: 1px solid #1e2433; border-radius: 8px; padding: 14px 18px; }
+    .mini-card h2 { color: #00e5ff; font-size: 0.78rem; letter-spacing: 1px; margin-bottom: 10px; text-transform: uppercase; }
+    .mini-chart { position: relative; height: 130px; }
+    .mini-chart-sm { position: relative; height: 60px; }
+
+    /* Service Status Board */
+    .svc-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(120px, 1fr)); gap: 8px; }
+    .svc-card { background: #1a1f2e; border-radius: 4px; padding: 8px 10px; font-size: 0.72rem; }
+    .svc-name { color: #00e5ff; margin-bottom: 3px; font-weight: bold; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .svc-score { color: #666; margin-bottom: 2px; }
+    .svc-status { font-weight: bold; margin-bottom: 2px; font-size: 0.7rem; }
+    .svc-incident { color: #444; font-size: 0.67rem; }
+
+    /* Log Explorer */
+    .log-filter-bar { display: flex; align-items: center; flex-wrap: wrap; gap: 8px; margin-bottom: 12px; }
+    .log-filter-bar select,
+    .log-filter-bar input { background: #0f1117; border: 1px solid #1e2433; color: #e0e0e0; padding: 5px 10px; border-radius: 4px; font-family: inherit; font-size: 0.78rem; }
+    .log-filter-bar input { min-width: 200px; }
+    .log-filter-bar select:focus,
+    .log-filter-bar input:focus { outline: none; border-color: #00e5ff55; }
+    #log-count-label { margin-left: auto; color: #555; font-size: 0.75rem; }
+    .log-row { cursor: pointer; }
+    .log-row:hover { background: #1a1f2e; }
+    /* Expandable log rows */
+    .log-detail-row td { padding: 0; }
+    .log-detail-inner { padding: 16px 20px; background: #0d1117; border-bottom: 1px solid #1e2433; }
+    .log-detail-two-col { display: grid; grid-template-columns: 60% 1fr; gap: 20px; }
+    .log-detail-one-col { display: grid; grid-template-columns: 1fr; }
+    .log-detail-col { font-size: 0.8rem; }
+    .log-detail-label { color: #00e5ff; font-size: 0.72rem; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 8px; padding-bottom: 4px; border-bottom: 1px solid #1e2433; }
+    .log-detail-field { display: flex; gap: 10px; margin-bottom: 6px; line-height: 1.5; }
+    .log-detail-key { color: #555; min-width: 110px; flex-shrink: 0; }
+    .log-meta-grid { display: grid; grid-template-columns: 110px 1fr; gap: 5px 8px; font-size: 0.78rem; }
+    .log-meta-grid .log-detail-key { color: #555; }
+
+    /* Exception badge */
+    .exc-badge { background: #1a0a0a; border: 1px solid #ff4444; border-radius: 4px; padding: 10px 14px; margin-bottom: 4px; }
+    .exc-type { color: #ff4444; font-weight: bold; font-size: 0.82rem; font-family: 'Courier New', monospace; }
+    .exc-msg  { color: #ffaaaa; font-size: 0.78rem; margin-top: 4px; word-break: break-word; }
+
+    /* Stacktrace terminal */
+    .log-stacktrace-box { background: #080c10; border: 1px solid #1e3a4a; border-radius: 4px; padding: 12px 14px; font-size: 0.74rem; font-family: 'Courier New', monospace; white-space: pre; overflow-x: auto; max-height: 220px; overflow-y: auto; line-height: 1.6; margin: 0; }
+
+    /* Shimmer loading */
+    .log-shimmer { padding: 18px 20px; background: #0d1117; }
+    .log-shimmer-bar { height: 12px; border-radius: 4px; background: linear-gradient(90deg, #1a1f2e 25%, #232a3a 50%, #1a1f2e 75%); background-size: 200% 100%; animation: shimmer 1.4s infinite; }
+    @keyframes shimmer { 0%{background-position:200% 0} 100%{background-position:-200% 0} }
+
+    /* AI panel */
+    .ai-panel-idle { display: flex; flex-direction: column; align-items: flex-start; gap: 8px; padding-top: 4px; }
+    .ai-analyse-btn { background: #0d2e1a; border: 1px solid #00ff88; color: #00ff88; padding: 6px 14px; border-radius: 4px; cursor: pointer; font-size: 0.78rem; font-family: inherit; transition: all 0.15s; }
+    .ai-analyse-btn:hover { background: #0f3d22; }
+    .ai-panel-hint { color: #444; font-size: 0.72rem; margin: 0; }
+    .ai-loading { display: flex; align-items: center; gap: 8px; padding: 10px 0; color: #00e5ff; font-size: 0.8rem; }
+    .ai-dots span { animation: blink 1.4s infinite; display: inline-block; }
+    .ai-dots span:nth-child(2) { animation-delay: 0.2s; }
+    .ai-dots span:nth-child(3) { animation-delay: 0.4s; }
+    @keyframes blink { 0%,80%,100%{opacity:0} 40%{opacity:1} }
+    .ai-terminal { background: #080c10; border: 1px solid #00c87044; border-radius: 4px; padding: 14px; font-size: 0.78rem; line-height: 1.6; }
+    .ai-point { margin-bottom: 12px; }
+    .ai-point:last-child { margin-bottom: 0; }
+    .ai-point-title { color: #00c870; font-size: 0.7rem; font-weight: bold; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 4px; }
+    .ai-point-body { color: #b0c4b1; }
+    .ai-footer { font-size: 0.68rem; color: #444; margin-top: 8px; }
+    .log-pagination { display: flex; align-items: center; gap: 12px; margin-top: 12px; font-size: 0.78rem; }
+    #log-page-label { color: #666; }
+    .level-badge { display: inline-block; padding: 2px 7px; border-radius: 3px; font-size: 0.68rem; font-weight: bold; }
+    .level-INFO     { background: #0d4a5e; color: #00e5ff; }
+    .level-WARNING  { background: #5e4300; color: #ffd740; }
+    .level-ERROR    { background: #5e1a00; color: #ff6b6b; }
+    .level-CRITICAL { background: #3d0000; color: #ff4081; }
+    .ellipsis { max-width: 140px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+    /* Webhook Activity panel */
+    .wh-panel { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
+    .wh-section-title { color: #00e5ff; font-size: 0.72rem; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 10px; padding-bottom: 4px; border-bottom: 1px solid #1e2433; }
+    .wh-feed { font-family: 'Courier New', monospace; font-size: 0.75rem; line-height: 1.8; }
+    .wh-entry { display: flex; align-items: baseline; gap: 8px; }
+    .wh-entry-ok  { color: #69f0ae; }
+    .wh-entry-err { color: #ff4081; }
+    .wh-ts { color: #444; font-size: 0.68rem; min-width: 90px; }
+    .wh-empty { color: #444; font-size: 0.78rem; line-height: 1.7; }
+    .wh-config-url { color: #b0bec5; font-size: 0.78rem; word-break: break-all; margin-bottom: 12px; }
+    .wh-config-url span { color: #444; }
+    #wh-test-btn { background: #0d1a30; border: 1px solid #00e5ff; color: #00e5ff; padding: 6px 14px; border-radius: 4px; cursor: pointer; font-size: 0.78rem; font-family: inherit; transition: all 0.15s; }
+    #wh-test-btn:hover { background: #0f2040; }
+    #wh-test-result { margin-top: 8px; font-size: 0.76rem; min-height: 18px; }
+
+    /* Health Trends panel */
+    .ht-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(180px, 1fr)); gap: 10px; }
+    .ht-card { border: 1px solid #1e2433; border-radius: 6px; padding: 12px 14px; }
+    .ht-card.ht-degrading  { border-color: #ff4444; }
+    .ht-card.ht-improving  { border-color: #00ff88; }
+    .ht-card.ht-stable     { border-color: #444; }
+    .ht-svc  { font-size: 0.8rem; font-weight: bold; color: #ccc; display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px; }
+    .ht-arrow { font-size: 1rem; }
+    .ht-arrow.ht-degrading  { color: #ff4444; }
+    .ht-arrow.ht-improving  { color: #00ff88; }
+    .ht-arrow.ht-stable     { color: #888; }
+    .ht-bar-wrap { height: 8px; background: #111; border-radius: 4px; overflow: hidden; margin: 6px 0; }
+    .ht-bar { height: 100%; border-radius: 4px; transition: width 0.4s; }
+    .ht-bar.ht-degrading  { background: #ff4444; }
+    .ht-bar.ht-improving  { background: #00ff88; }
+    .ht-bar.ht-stable     { background: #888; }
+    .ht-score { font-size: 1.0rem; font-weight: bold; color: #eee; }
+    .ht-prev  { font-size: 0.7rem; color: #555; margin-top: 4px; }
+
+    /* Trend arrows on health chart — drawn via Chart.js plugin, no extra CSS needed */
+
+    /* Webhook section in modal */
+    .wh-modal-entry { font-size: 0.8rem; line-height: 1.8; }
+    .wh-modal-ok  { color: #69f0ae; }
+    .wh-modal-err { color: #ff4081; }
+    .wh-payload-btn { background: none; border: 1px solid #2a3040; color: #888; padding: 2px 8px; border-radius: 3px; cursor: pointer; font-size: 0.7rem; font-family: inherit; margin-left: 8px; }
+    .wh-payload-pre { background: #080c10; border: 1px solid #1e2433; border-radius: 4px; padding: 10px; font-size: 0.7rem; font-family: 'Courier New', monospace; white-space: pre-wrap; margin-top: 6px; display: none; max-height: 160px; overflow-y: auto; color: #888; }
+
+    /* Modal */
+    #anomaly-modal { display: none; position: fixed; inset: 0; z-index: 1000; align-items: center; justify-content: center; background: rgba(0,0,0,0.75); padding: 24px; }
+    #modal-box { background: #0f1117; border: 1px solid #00e5ff; border-radius: 8px; max-width: 720px; width: 100%; max-height: 90vh; overflow-y: auto; padding: 28px 32px; position: relative; }
+    #modal-close { position: absolute; top: 12px; right: 16px; background: none; border: none; color: #555; font-size: 1.5rem; cursor: pointer; padding: 0; line-height: 1; }
+    #modal-close:hover { color: #ff4081; background: none; }
+    .modal-header { display: flex; align-items: center; flex-wrap: wrap; gap: 4px; margin-bottom: 24px; padding-bottom: 16px; border-bottom: 1px solid #1e2433; }
+    .modal-section { margin-bottom: 24px; }
+    .modal-section-title { color: #00e5ff; font-size: 0.78rem; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 12px; padding-bottom: 6px; border-bottom: 1px solid #1e2433; }
+    .modal-grid { display: grid; grid-template-columns: 160px 1fr; gap: 8px 16px; font-size: 0.82rem; }
+    .modal-label { color: #555; }
+    .zscore-bar-wrap { margin-bottom: 12px; }
+    .zscore-bar { position: relative; display: flex; height: 20px; border-radius: 4px; overflow: visible; margin-bottom: 8px; }
+    .zscore-zone { height: 100%; }
+    .zscore-marker { position: absolute; top: -4px; width: 3px; height: 28px; background: #fff; border-radius: 2px; transform: translateX(-50%); box-shadow: 0 0 8px rgba(255,255,255,0.6); }
+    .zscore-labels { display: flex; justify-content: space-between; font-size: 0.7rem; }
+    .zscore-explain { font-size: 0.82rem; color: #888; line-height: 1.7; margin-top: 10px; }
+    .ai-terminal { background: #0a0a0a; border: 1px solid #00ff88; color: #00ff88; font-family: 'Courier New', Courier, monospace; padding: 16px; border-radius: 4px; font-size: 0.8rem; white-space: pre-wrap; line-height: 1.6; }
+    .modal-actions { display: flex; align-items: center; gap: 8px; padding-top: 16px; border-top: 1px solid #1e2433; flex-wrap: wrap; }
+    #modal-action-status { font-size: 0.78rem; margin-left: 4px; }
+  </style>
+</head>
+<body>
+<header>
+  <h1>&#x25C6; NOCTURNE</h1>
+  <div>
+    <button onclick="runDetection()">Run Detection Scan</button>
+    <span id="refresh-indicator">Auto-refresh in <span id="countdown">30</span>s</span>
+  </div>
+</header>
+
+<div class="grid">
+
+  <!-- Stats row -->
+  <div class="card full-width">
+    <h2>System Overview</h2>
+    <div class="stat-row">
+      <div class="stat">
+        <div class="label" id="stat-label-total">Total Logs</div>
+        <div class="value" id="stat-total">—</div>
+      </div>
+      <div class="stat">
+        <div class="label" id="stat-label-error">Error Rate</div>
+        <div class="value" id="stat-error-rate">—</div>
+      </div>
+      <div class="stat">
+        <div class="label" id="stat-label-anomalies">Active Anomalies</div>
+        <div class="value" id="stat-anomalies">—</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- System Intelligence bar -->
+  <div id="intel-bar" class="intel-bar full-width">Loading intelligence summary…</div>
+
+  <!-- Timeframe filter bar -->
+  <div class="tf-bar full-width">
+    <span class="tf-label">Timeframe</span>
+    <div class="tf-pills">
+      <button class="tf-pill" data-tf="15m">15M</button>
+      <button class="tf-pill" data-tf="30m">30M</button>
+      <button class="tf-pill tf-active" data-tf="1h">1H</button>
+      <button class="tf-pill" data-tf="3h">3H</button>
+      <button class="tf-pill" data-tf="6h">6H</button>
+      <button class="tf-pill" data-tf="12h">12H</button>
+      <button class="tf-pill" data-tf="24h">24H</button>
+      <button class="tf-pill" data-tf="7d">7D</button>
+    </div>
+  </div>
+
+  <!-- Webhook Activity panel -->
+  <div class="card full-width">
+    <h2>Webhook Activity</h2>
+    <div class="wh-panel">
+      <div>
+        <div class="wh-section-title">Live Delivery Feed</div>
+        <div id="wh-feed" class="wh-feed">
+          <span class="wh-empty">Loading…</span>
+        </div>
+      </div>
+      <div>
+        <div class="wh-section-title">Webhook Config</div>
+        <div id="wh-config-info" class="wh-config-url"><span>Loading…</span></div>
+        <button id="wh-test-btn" onclick="sendTestWebhook()">&#x26A1; Send Test Webhook</button>
+        <div id="wh-test-result"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Error rate line chart -->
+  <div class="card">
+    <h2 id="h-error-rate">Error Rate / 5min (Last 60 MINS)</h2>
+    <div class="chart-wrap"><canvas id="errorChart"></canvas></div>
+  </div>
+
+  <!-- Health score bar chart -->
+  <div class="card">
+    <h2>Service Health Scores (0–100)</h2>
+    <div class="chart-wrap"><canvas id="healthChart"></canvas></div>
+  </div>
+
+  <!-- Health Trends panel (full-width, after health chart) -->
+  <div class="card full-width" style="grid-column:1/-1">
+    <h2>Health Trends <span style="font-size:0.7rem;color:#444;font-weight:normal;text-transform:none;letter-spacing:0">— change vs 1h ago</span></h2>
+    <div id="health-trends-grid" class="ht-grid">
+      <div style="color:#555;font-size:0.78rem">Loading…</div>
+    </div>
+  </div>
+
+  <!-- Log level doughnut -->
+  <div class="card">
+    <h2 id="h-level-dist">Log Level Distribution (1H)</h2>
+    <div class="chart-wrap"><canvas id="levelChart"></canvas></div>
+  </div>
+
+  <!-- Right column: 3 stacked widgets -->
+  <div class="col-stack">
+
+    <!-- Widget A: Top 5 Slowest Endpoints -->
+    <div class="mini-card">
+      <h2>Top 5 Slowest Endpoints</h2>
+      <div class="mini-chart"><canvas id="slowestChart"></canvas></div>
+      <p class="no-data" style="display:none;color:#555;font-size:0.78rem;margin-top:8px">No response time data yet.</p>
+    </div>
+
+    <!-- Widget B: Request Volume Sparkline -->
+    <div class="mini-card">
+      <h2>Request Volume</h2>
+      <div class="mini-chart-sm"><canvas id="volumeChart"></canvas></div>
+    </div>
+
+    <!-- Widget C: Service Status Board -->
+    <div class="mini-card">
+      <h2>Service Status Board</h2>
+      <div id="service-status-board" class="svc-grid">
+        <div style="color:#555;font-size:0.78rem">Loading…</div>
+      </div>
+    </div>
+
+  </div><!-- /col-stack -->
+
+  <!-- Anomaly table -->
+  <div class="card full-width">
+    <h2>Recent Anomaly Events <span style="font-size:0.7rem;color:#444;font-weight:normal;text-transform:none;letter-spacing:0">— click row for details</span></h2>
+    <table class="anomaly-table">
+      <thead>
+        <tr>
+          <th>Detected</th><th>Service</th><th>Severity</th>
+          <th>Z-Score</th><th>Errors</th><th>Health</th><th>Resolved</th>
+        </tr>
+      </thead>
+      <tbody id="anomaly-tbody"><tr><td colspan="7">Loading…</td></tr></tbody>
+    </table>
+  </div>
+
+  <!-- Log Explorer -->
+  <div class="card full-width">
+    <h2>Log Explorer</h2>
+    <div class="log-filter-bar">
+      <select id="log-filter-service"><option value="">All Services</option></select>
+      <select id="log-filter-level">
+        <option value="">All Levels</option>
+        <option value="INFO">INFO</option>
+        <option value="WARNING">WARNING</option>
+        <option value="ERROR">ERROR</option>
+        <option value="CRITICAL">CRITICAL</option>
+      </select>
+      <input id="log-filter-search" type="text" placeholder="Search message…" />
+      <button id="log-apply-btn">Apply Filters</button>
+      <button id="log-clear-btn">Clear</button>
+      <span id="log-count-label"></span>
+      <select id="log-page-size">
+        <option value="25">25 / page</option>
+        <option value="50">50 / page</option>
+        <option value="100">100 / page</option>
+      </select>
+    </div>
+    <table class="anomaly-table">
+      <thead>
+        <tr>
+          <th>Timestamp</th><th>Service</th><th>Level</th>
+          <th>Path</th><th>Status</th><th>Resp. Time</th><th>Message</th>
+        </tr>
+      </thead>
+      <tbody id="log-tbody"><tr><td colspan="7" style="color:#555;text-align:center">Loading…</td></tr></tbody>
+    </table>
+    <div class="log-pagination">
+      <button id="log-prev-btn">&#8592; Prev</button>
+      <span id="log-page-label">Page 1</span>
+      <button id="log-next-btn">Next &#8594;</button>
+    </div>
+  </div>
+
+</div><!-- /grid -->
+
+<!-- Anomaly detail modal -->
+<div id="anomaly-modal">
+  <div id="modal-box">
+    <button id="modal-close" title="Close (Esc)">&#x2715;</button>
+    <div id="modal-content"></div>
+  </div>
+</div>
+
+<script src="{% static 'nocturne/dashboard.js' %}"></script>
+<script>
+  const DATA_URL   = "{% url 'nocturne-dashboard-data' %}";
+  const DETECT_URL = "{% url 'nocturne-detect' %}";
+  const LOGS_URL   = "{% url 'nocturne-logs' %}";
+  initDashboard(DATA_URL, DETECT_URL, LOGS_URL);
+</script>
+</body>
+</html>
